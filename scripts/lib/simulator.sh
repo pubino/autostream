@@ -35,9 +35,25 @@ available_schemes() {
 # identities now install side by side — so a stale value would not fail, it would
 # quietly drive the *other* app. Costs one xcodebuild invocation.
 bundle_id_for_scheme() {
+  scheme_setting "$1" PRODUCT_BUNDLE_IDENTIFIER
+}
+
+# The built bundle's own name, e.g. AutoStreamDisplay.app.
+#
+# Must be read from the project for the same reason as the identifier above: the two
+# targets write their products into one build directory, so a name guessed from the
+# *project* rather than the *scheme* silently installs whichever app was built last
+# under that filename. That is not a failure — it is a stale install of the other app,
+# which is worse, because the launch afterwards still succeeds.
+app_bundle_name_for_scheme() {
+  scheme_setting "$1" FULL_PRODUCT_NAME
+}
+
+scheme_setting() {
   xcodebuild -project "$REPO_ROOT/$PROJECT_NAME.xcodeproj" -scheme "$1" \
     -configuration Debug -showBuildSettings 2>/dev/null \
-    | awk -F' = ' '/^[[:space:]]+PRODUCT_BUNDLE_IDENTIFIER = /{print $2; exit}'
+    | awk -F' = ' -v key="$2" \
+        '$1 ~ "^[[:space:]]+" key "$" {print $2; exit}'
 }
 
 # Chooses which of the two apps the calling script operates on.
@@ -57,7 +73,12 @@ select_app() {
     echo "error: could not read PRODUCT_BUNDLE_IDENTIFIER for scheme '$requested'." >&2
     exit 3
   fi
-  echo "[sim] app=$SCHEME_NAME bundle=$BUNDLE_ID"
+  APP_BUNDLE_NAME="$(app_bundle_name_for_scheme "$requested")"
+  if [[ -z "$APP_BUNDLE_NAME" ]]; then
+    echo "error: could not read FULL_PRODUCT_NAME for scheme '$requested'." >&2
+    exit 3
+  fi
+  echo "[sim] app=$SCHEME_NAME bundle=$BUNDLE_ID product=$APP_BUNDLE_NAME"
 }
 
 # Guards the functions below, which are meaningless without an identity.

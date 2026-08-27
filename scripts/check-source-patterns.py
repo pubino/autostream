@@ -322,6 +322,24 @@ def check_project() -> None:
                             f"scheme outside xcshareddata, so this identity cannot be built "
                             f"by CI at all.")
 
+    # Both targets build their products into one directory, so a script that names the
+    # bundle after the *project* rather than the *scheme* installs whichever app was
+    # built last under that filename. run.sh did exactly this: it built
+    # AutoStreamDisplay.app, installed a stale AutoSignDisplay.app, and then launched the
+    # public bundle identifier successfully, because an older copy was already there.
+    # Nothing failed, and the app on screen was not the app just built.
+    for script in sorted((REPO_ROOT / "scripts").rglob("*.sh")):
+        # Comment-stripped, like the Swift checks above. The comment in run.sh explaining
+        # this very bug quotes the offending string, and matching that would make the
+        # guard fire on the fix.
+        text = "\n".join(line for line in script.read_text(encoding="utf-8").splitlines()
+                          if not line.lstrip().startswith("#"))
+        if "$PROJECT_NAME.app" in text or "${PROJECT_NAME}.app" in text:
+            fail("project", f"{script.relative_to(REPO_ROOT)} names an app bundle after "
+                            f"PROJECT_NAME. Use APP_BUNDLE_NAME from select_app, which "
+                            f"reads FULL_PRODUCT_NAME for the chosen scheme — otherwise "
+                            f"--app is ignored and the other identity gets installed.")
+
 
 # ---------- icon asset catalog ----------
 # Build 3 of 1.0 was rejected on upload with ITMS-90709 for a missing 2x background

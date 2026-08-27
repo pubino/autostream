@@ -48,7 +48,9 @@ select_app "$APP"
 
 UDID="$(resolve_udid "$UDID")"
 BUILD_DIR="$REPO_ROOT/build/$CONFIGURATION-appletvsimulator"
-APP_PATH="$BUILD_DIR/$PROJECT_NAME.app"
+# Named by the scheme, not the project. Both targets build into this one directory,
+# so $PROJECT_NAME.app here installed AutoSignDisplay.app no matter what --app said.
+APP_PATH="$BUILD_DIR/$APP_BUNDLE_NAME"
 
 echo "[run] configuration=$CONFIGURATION udid=$UDID mode=$MANAGED_MODE"
 
